@@ -92,10 +92,6 @@ jobs:
       # 核心构建步骤：直接执行 build_android.sh
       # -------------------------------------------------------------
       - name: Run Android Build Script
-        env:
-          KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_STORE_PASSWORD }}
-          KEYSTORE_ALIAS: ${{ secrets.KEYSTORE_KEY_ALIAS }}
-          KEYSTORE_ALIAS_PASSWORD: ${{ secrets.KEYSTORE_KEY_PASSWORD }}
         run: |
         
           cd baidu-pan
