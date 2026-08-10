@@ -1,0 +1,104 @@
+name: Build iOS Release App (IPA for TrollStore & Sideload)
+
+on:
+  push:
+    paths:
+      - 'ios_build.txt'
+  workflow_dispatch:
+
+permissions:
+  actions: write
+  contents: write
+
+jobs:
+  build-ios:
+    runs-on: macos-latest
+
+    steps:
+      # 1. 检出代码
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      # 1. 克隆私有仓库
+      - name: Clone repository
+        run: |
+          git clone https://${{ secrets.SYNCTOKEN }}@github.com/Metamask-ctrl/baidu-pan.git
+
+      # 2. 设置 Java 环境
+      - name: Set up Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'zulu'
+          java-version: '17'
+
+      # 3. 设置 Flutter 环境
+      - name: Set up Flutter SDK
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.44.9'
+          channel: 'stable'
+          cache: true
+
+      # 4. 缓存管理
+      - name: Cache pub dependencies
+        uses: actions/cache@v4
+        with:
+          path: ~/.pub-cache
+          key: pub-ios-${{ runner.os }}-${{ hashFiles('pan_client/pubspec.lock') }}-${{ github.run_id }}
+          restore-keys: |
+            pub-ios-${{ runner.os }}-${{ hashFiles('pan_client/pubspec.lock') }}
+            pub-ios-${{ runner.os }}
+
+      # 5. 执行 iOS 核心打包脚本
+      - name: Run iOS Build Script
+        env:
+          BUILD_NUMBER: ${{ github.run_number }}
+        run: |
+        
+          cd baidu-pan
+          
+          chmod +x build_ios.sh
+          ./build_ios.sh
+
+      # 6. 清理旧 Actions 缓存
+      - name: Delete old iOS caches before saving new
+        uses: actions/github-script@v7
+        with:
+          script: |
+            try {
+              const caches = await github.rest.actions.getActionsCacheList({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+              });
+              const currentRunId = "${{ github.run_id }}";
+              for (const cache of caches.data.actions_caches) {
+                const isIosCache = cache.key.startsWith('pub-ios-');
+                const isNotCurrentRun = !cache.key.endsWith(currentRunId);
+                if (isIosCache && isNotCurrentRun) {
+                  console.log(`[iOS Cleanup] Deleting old cache: ${cache.key} (ID: ${cache.id})`);
+                  await github.rest.actions.deleteActionsCacheById({
+                    owner: context.repo.owner,
+                    repo: context.repo.repo,
+                    cache_id: cache.id,
+                  });
+                }
+              }
+            } catch (error) {
+              console.log('Error deleting old iOS caches:', error.message);
+            }
+
+      # 7. 发布产物 (IPA + 符号表) 到 GitHub Releases
+      - name: Release iOS IPA & Symbols to GitHub Releases
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v1.0.${{ github.run_number }}
+          name: "Release v1.0.${{ github.run_number }}"
+          body: |
+            ### pan_client iOS Release (Build ${{ github.run_number }})
+            * **应用安装包**：`pan-client-ios-v1.0.${{ github.run_number }}.ipa` （未签名，适配巨魔 TrollStore、爱思助手、AltStore、Signous 等工具）
+            * **解析符号表**：`pan-client-ios-symbols-v1.0.${{ github.run_number }}.zip` （保留备用，用于还原 `--obfuscate` 混淆后的 Crash 堆栈）
+          files: |
+            output_ios/pan-client-ios-*.ipa
+            output_ios/pan-client-ios-symbols-*.zip
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
