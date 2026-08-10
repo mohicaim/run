@@ -36,7 +36,7 @@ jobs:
       - name: Setup Flutter
         uses: subosito/flutter-action@v2
         with:
-          flutter-version: "3.24.0" # 根据你的项目修改版本
+          flutter-version: "3.44.9" # 根据你的项目修改版本
           channel: "stable"
           cache: true
 
