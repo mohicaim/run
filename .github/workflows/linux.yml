@@ -4,6 +4,7 @@ on:
   push:
     paths:
       - 'linux_build.txt'
+      - 'build.txt'
   workflow_dispatch:
 
 permissions:

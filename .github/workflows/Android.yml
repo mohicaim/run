@@ -4,6 +4,7 @@ on:
   push:
     paths:
       - 'android_build.txt'
+      - 'build.txt'
   workflow_dispatch:
 
 env:

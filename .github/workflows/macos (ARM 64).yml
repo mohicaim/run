@@ -1,4 +1,4 @@
-name: Build macOS amd64 Release
+name: Build macOS Release (ARM64)
 
 on:
   push:
@@ -31,9 +31,9 @@ jobs:
           path: |
             ~/.pub-cache
             ~/Library/Caches/CocoaPods
-          key: ${{ runner.os }}-build-${{ hashFiles('baidu-pan/pan_client/pubspec.lock', 'baidu-pan/pan_client/macos/Podfile.lock') }}
+          key: ${{ runner.os }}-build-arm64-${{ hashFiles('baidu-pan/pan_client/pubspec.lock', 'baidu-pan/pan_client/macos/Podfile.lock') }}
           restore-keys: |
-            ${{ runner.os }}-build-
+            ${{ runner.os }}-build-arm64-
 
       # 3. 设置 Flutter 环境
       - name: Setup Flutter
@@ -47,16 +47,16 @@ jobs:
       - name: Install create-dmg
         run: brew install create-dmg
 
-      # 5. 执行构建脚本
-      - name: Run build script
+      # 5. 执行 ARM64 专项构建脚本
+      - name: Run build script (ARM64 Only)
         run: |
           cd baidu-pan
-          chmod +x build_macos.sh
-          ./build_macos.sh
+          chmod +x build_macos_arm64.sh
+          ./build_macos_arm64.sh
         env:
           GITHUB_RUN_NUMBER: ${{ github.run_number }}
 
-      # 6. 发布到 GitHub Release 并上传 dmg、zip 等全部产物
+      # 6. 发布到 GitHub Release 并上传 ARM64 产物
       - name: Create Release and Upload Assets
         uses: softprops/action-gh-release@v2
         with:
@@ -64,17 +64,14 @@ jobs:
           name: "Release v1.0.${{ github.run_number }}"
           generate_release_notes: false
           body: |
-            ## macOS Release (v1.0.${{ github.run_number }})
+            ## macOS ARM64 Release (v1.0.${{ github.run_number }})
 
             ### 包含的构件文件：
-            * **Apple Silicon (ARM64 / M系列芯片)**：
+            * **Apple Silicon (ARM64 / M1/M2/M3/M4 系列芯片)**：
               * `pan-client-macos-arm64-release.dmg`
               * `pan-client-macos-arm64-release.zip`
-            * **Intel (x86_64 / AMD64)**：
-              * `pan-client-macos-x86_64-release.dmg`
-              * `pan-client-macos-x86_64-release.zip`
             * **Debug 符号表**：
-              * `pan-client-macos-symbols-v1.0.${{ github.run_number }}.zip`
+              * `pan-client-macos-arm64-symbols-v1.0.${{ github.run_number }}.zip`
 
             ---
 
