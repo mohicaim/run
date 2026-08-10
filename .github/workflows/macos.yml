@@ -1,6 +1,9 @@
 name: Build macOS Release
 
 on:
+  push:
+    paths:
+      - 'macos_build.txt'
   workflow_dispatch:
 
 # 必须声明 contents: write 权限，否则工作流无法创建 Release 和上传文件
