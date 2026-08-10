@@ -1,0 +1,153 @@
+name: Build Android APK
+
+on:
+  push:
+    paths:
+      - 'android_build.txt'
+  workflow_dispatch:
+
+permissions:
+  actions: write # 明确授予删除 Artifacts 和 Caches 的权限
+  contents: write # 显式赋予写入 Release 和文件的权限
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: zulu
+          java-version: '17'
+
+      # 安装 Android SDK (包含 apksigner 和 zipalign 工具) 及 32位兼容库
+      - name: Install Android SDK & System Dependencies
+        run: |
+          sudo dpkg --add-architecture i386
+          sudo apt-get update
+          sudo apt-get install -y wget unzip libc6:i386 libstdc++6:i386 zlib1g:i386
+          
+          sudo mkdir -p /usr/local/lib/android/sdk
+          sudo chown $USER:$USER /usr/local/lib/android/sdk
+          wget https://dl.google.com/android/repository/commandlinetools-linux-11076708_latest.zip -O cmdline-tools.zip
+          unzip -q cmdline-tools.zip
+          rm -rf /usr/local/lib/android/sdk/cmdline-tools/latest
+          mkdir -p /usr/local/lib/android/sdk/cmdline-tools/latest
+          mv cmdline-tools/* /usr/local/lib/android/sdk/cmdline-tools/latest/
+          export ANDROID_HOME=/usr/local/lib/android/sdk
+          export PATH=$ANDROID_HOME/cmdline-tools/latest/bin:$PATH
+          export PATH=$ANDROID_HOME/platform-tools:$PATH
+
+      - name: Install Android API 36 & Build Tools
+        run: |
+          export ANDROID_HOME=/usr/local/lib/android/sdk
+          export PATH=$ANDROID_HOME/cmdline-tools/latest/bin:$PATH
+          yes | sdkmanager "platform-tools" "platforms;android-36" "build-tools;36.0.0"
+
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.44.8'
+          channel: stable
+          cache: true
+
+      - name: Flutter doctor
+        run: flutter doctor -v
+
+      # -------------------------------------------------------------
+      # 缓存管理
+      # -------------------------------------------------------------
+      - name: Cache Gradle
+        uses: actions/cache@v4
+        with:
+          path: ~/.gradle
+          key: gradle-android-${{ runner.os }}-${{ hashFiles('pan_client/android/build.gradle') }}-${{ github.run_id }}
+          restore-keys: |
+            gradle-android-${{ runner.os }}-${{ hashFiles('pan_client/android/build.gradle') }}
+            gradle-android-${{ runner.os }}
+
+      - name: Cache pub dependencies
+        uses: actions/cache@v4
+        with:
+          path: ~/.pub-cache
+          key: pub-android-${{ runner.os }}-${{ hashFiles('pan_client/pubspec.lock') }}-${{ github.run_id }}
+          restore-keys: |
+            pub-android-${{ runner.os }}-${{ hashFiles('pan_client/pubspec.lock') }}
+            pub-android-${{ runner.os }}
+
+      # -------------------------------------------------------------
+      # 核心构建步骤：直接执行 build_android.sh
+      # -------------------------------------------------------------
+      - name: Run Android Build Script
+        env:
+          KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_STORE_PASSWORD }}
+          KEYSTORE_ALIAS: ${{ secrets.KEYSTORE_KEY_ALIAS }}
+          KEYSTORE_ALIAS_PASSWORD: ${{ secrets.KEYSTORE_KEY_PASSWORD }}
+        run: |
+          chmod +x build_android.sh
+          ./build_android.sh
+
+      # -------------------------------------------------------------
+      # 缓存与历史产物清理
+      # -------------------------------------------------------------
+      - name: Delete old Android caches before saving new
+        uses: actions/github-script@v7
+        with:
+          script: |
+            try {
+              const caches = await github.rest.actions.getActionsCacheList({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+              });
+              const currentRunId = "${{ github.run_id }}";
+              for (const cache of caches.data.actions_caches) {
+                const isAndroidCache = cache.key.startsWith('gradle-android-') || cache.key.startsWith('pub-android-');
+                const isNotCurrentRun = !cache.key.endsWith(currentRunId);
+                if (isAndroidCache && isNotCurrentRun) {
+                  console.log(`[Android Cleanup] Deleting old cache: ${cache.key} (ID: ${cache.id})`);
+                  await github.rest.actions.deleteActionsCacheById({
+                    owner: context.repo.owner,
+                    repo: context.repo.repo,
+                    cache_id: cache.id,
+                  });
+                }
+              }
+            } catch (error) {
+              console.log('Error deleting old Android caches:', error.message);
+            }
+
+      - name: Delete old APK artifact
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const res = await github.rest.actions.listArtifactsForRepo({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+            });
+            const targetName = 'pan-client-release-apks';
+            for (const artifact of res.data.artifacts) {
+              if (artifact.name === targetName) {
+                console.log(`[Artifact Cleanup] Deleting matching APK artifact: ${artifact.name} (ID: ${artifact.id})`);
+                await github.rest.actions.deleteArtifact({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  artifact_id: artifact.id,
+                });
+              }
+            }
+
+      # -------------------------------------------------------------
+      # 发布架构包到 GitHub Releases
+      # -------------------------------------------------------------
+      - name: Release APKs to GitHub Releases
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v1.0.${{ github.run_number }}
+          name: "Release v1.0.${{ github.run_number }}"
+          body: "使用 dpt-shell 完成 DEX 抽壳加固并独立打包的 ARMv7 (32位) 和 ARM64 (64位) Android Release 版本。"
+          files: signed_apks/pan-client-*.apk
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
