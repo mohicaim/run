@@ -5,7 +5,12 @@ on:
     paths:
       - 'android_build.txt'
   workflow_dispatch:
-
+env:
+  KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
+  KEYSTORE_ALIAS: ${{ secrets.KEYSTORE_ALIAS }}
+  
+  KEYSTORE_ALIAS_PASSWORD: ${{ secrets.KEYSTORE_ALIAS_PASSWORD }}
+  
 permissions:
   actions: write # 明确授予删除 Artifacts 和 Caches 的权限
   contents: write # 显式赋予写入 Release 和文件的权限
