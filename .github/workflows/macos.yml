@@ -1,4 +1,4 @@
-name: Build macOS Release
+name: Build macOS amd64 Release
 
 on:
   push:
@@ -29,7 +29,6 @@ jobs:
         with:
           path: |
             ~/.pub-cache
-            baidu-pan/pan_client/macos/Pods
             ~/Library/Caches/CocoaPods
           key: ${{ runner.os }}-build-${{ hashFiles('baidu-pan/pan_client/pubspec.lock', 'baidu-pan/pan_client/macos/Podfile.lock') }}
           restore-keys: |
@@ -39,7 +38,7 @@ jobs:
       - name: Setup Flutter
         uses: subosito/flutter-action@v2
         with:
-          flutter-version: "3.44.9" # 根据你的项目修改版本
+          flutter-version: "3.44.9"
           channel: "stable"
           cache: true
 
@@ -54,7 +53,7 @@ jobs:
           chmod +x build_macos.sh
           ./build_macos.sh
         env:
-          BUILD_NUMBER: ${{ github.run_number }}
+          GITHUB_RUN_NUMBER: ${{ github.run_number }}
 
       # 6. 发布到 GitHub Release 并上传 dmg、zip 等全部产物
       - name: Create Release and Upload Assets
@@ -68,11 +67,11 @@ jobs:
 
             ### 包含的构件文件：
             * **Apple Silicon (ARM64 / M系列芯片)**：
-              * `pan-client-macos-arm64-v1.0.${{ github.run_number }}.dmg`
-              * `pan-client-macos-arm64-v1.0.${{ github.run_number }}.zip`
+              * `pan-client-macos-arm64-release.dmg`
+              * `pan-client-macos-arm64-release.zip`
             * **Intel (x86_64 / AMD64)**：
-              * `pan-client-macos-x86_64-v1.0.${{ github.run_number }}.dmg`
-              * `pan-client-macos-x86_64-v1.0.${{ github.run_number }}.zip`
+              * `pan-client-macos-x86_64-release.dmg`
+              * `pan-client-macos-x86_64-release.zip`
             * **Debug 符号表**：
               * `pan-client-macos-symbols-v1.0.${{ github.run_number }}.zip`
 
