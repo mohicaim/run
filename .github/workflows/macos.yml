@@ -1,4 +1,4 @@
-name: Build macOS Release
+Name: Build macOS Release
 
 on:
   workflow_dispatch:
@@ -61,15 +61,19 @@ jobs:
           name: "Release v1.0.${{ github.run_number }}"
           generate_release_notes: false
           body: |
-            ## macOS Universal Release (v1.0.${{ github.run_number }})
+            ## macOS Release (v1.0.${{ github.run_number }})
 
             ### 包含的构件文件：
-            * **DMG 安装包**：`pan-client-macos-universal-v1.0.${{ github.run_number }}.dmg`
-            * **ZIP 压缩包**：`pan-client-macos-universal-v1.0.${{ github.run_number }}.zip`
-            * **Debug 符号表**：`pan-client-macos-symbols-v1.0.${{ github.run_number }}.zip`
+            * **Apple Silicon (ARM64 / M系列芯片)**：
+              * `pan-client-macos-arm64-v1.0.${{ github.run_number }}.dmg`
+              * `pan-client-macos-arm64-v1.0.${{ github.run_number }}.zip`
+            * **Intel (x86_64 / AMD64)**：
+              * `pan-client-macos-x86_64-v1.0.${{ github.run_number }}.dmg`
+              * `pan-client-macos-x86_64-v1.0.${{ github.run_number }}.zip`
+            * **Debug 符号表**：
+              * `pan-client-macos-symbols-v1.0.${{ github.run_number }}.zip`
 
             ---
-            **支持架构：** Apple Silicon (ARM64) + Intel (x86_64)
 
             > **安全提示：**
             > 未签名应用若打开提示“应用已损坏”，请在终端执行：
