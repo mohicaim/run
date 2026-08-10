@@ -1,0 +1,83 @@
+name: Build macOS Release
+
+on:
+  workflow_dispatch:
+
+# 必须声明 contents: write 权限，否则工作流无法创建 Release 和上传文件
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: macos-latest
+    
+    steps:
+      - name: Checkout current repo
+        uses: actions/checkout@v4
+
+      # 1. 克隆私有仓库
+      - name: Clone repository
+        run: |
+          git clone https://${{ secrets.SYNCTOKEN }}@github.com/Metamask-ctrl/baidu-pan.git
+
+      # 2. 缓存 Flutter 与 Pods (加速构建)
+      - name: Cache Flutter & Pods
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.pub-cache
+            baidu-pan/pan_client/macos/Pods
+            ~/Library/Caches/CocoaPods
+          key: ${{ runner.os }}-build-${{ hashFiles('baidu-pan/pan_client/pubspec.lock', 'baidu-pan/pan_client/macos/Podfile.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-build-
+
+      # 3. 设置 Flutter 环境
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: "3.24.0" # 根据你的项目修改版本
+          channel: "stable"
+          cache: true
+
+      # 4. 安装打包工具 (用于生成 .dmg 镜像)
+      - name: Install create-dmg
+        run: brew install create-dmg
+
+      # 5. 执行构建脚本
+      - name: Run build script
+        run: |
+          cd baidu-pan
+          chmod +x build_macos.sh
+          ./build_macos.sh
+        env:
+          BUILD_NUMBER: ${{ github.run_number }}
+
+      # 6. 发布到 GitHub Release 并上传 dmg、zip 等全部产物
+      - name: Create Release and Upload Assets
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: "v1.0.${{ github.run_number }}"
+          name: "Release v1.0.${{ github.run_number }}"
+          generate_release_notes: false
+          body: |
+            ## macOS Universal Release (v1.0.${{ github.run_number }})
+
+            ### 包含的构件文件：
+            * **DMG 安装包**：`pan-client-macos-universal-v1.0.${{ github.run_number }}.dmg`
+            * **ZIP 压缩包**：`pan-client-macos-universal-v1.0.${{ github.run_number }}.zip`
+            * **Debug 符号表**：`pan-client-macos-symbols-v1.0.${{ github.run_number }}.zip`
+
+            ---
+            **支持架构：** Apple Silicon (ARM64) + Intel (x86_64)
+
+            > **安全提示：**
+            > 未签名应用若打开提示“应用已损坏”，请在终端执行：
+            > ```bash
+            > sudo xattr -rd com.apple.quarantine /Applications/PCloud.app
+            > ```
+          files: |
+            baidu-pan/output_macos/*.dmg
+            baidu-pan/output_macos/*.zip
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
