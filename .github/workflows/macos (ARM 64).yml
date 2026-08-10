@@ -3,7 +3,7 @@ name: Build macOS Release (ARM64)
 on:
   push:
     paths:
-      - 'macos_build.txt'
+      - 'macos_arm_build.txt'
       - 'build.txt'
   workflow_dispatch:
 
