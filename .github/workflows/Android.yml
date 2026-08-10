@@ -17,6 +17,11 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
+      # 1. 克隆私有仓库
+      - name: Clone repository
+        run: |
+          git clone https://${{ secrets.SYNCTOKEN }}@github.com/Metamask-ctrl/baidu-pan.git
+
       - name: Set up Java
         uses: actions/setup-java@v4
         with:
@@ -87,6 +92,9 @@ jobs:
           KEYSTORE_ALIAS: ${{ secrets.KEYSTORE_KEY_ALIAS }}
           KEYSTORE_ALIAS_PASSWORD: ${{ secrets.KEYSTORE_KEY_PASSWORD }}
         run: |
+        
+          cd baidu-pan
+          
           chmod +x build_android.sh
           ./build_android.sh
 
