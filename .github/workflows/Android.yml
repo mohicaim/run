@@ -1,16 +1,16 @@
-name: Build Android APK
+Name: Build Android APK
 
 on:
   push:
     paths:
       - 'android_build.txt'
   workflow_dispatch:
+
 env:
   KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
   KEYSTORE_ALIAS: ${{ secrets.KEYSTORE_ALIAS }}
-  
   KEYSTORE_ALIAS_PASSWORD: ${{ secrets.KEYSTORE_ALIAS_PASSWORD }}
-  
+
 permissions:
   actions: write # 明确授予删除 Artifacts 和 Caches 的权限
   contents: write # 显式赋予写入 Release 和文件的权限
@@ -74,30 +74,32 @@ jobs:
         uses: actions/cache@v4
         with:
           path: ~/.gradle
-          key: gradle-android-${{ runner.os }}-${{ hashFiles('pan_client/android/build.gradle') }}-${{ github.run_id }}
+          key: gradle-android-${{ runner.os }}-${{ hashFiles('baidu-pan/pan_client/android/build.gradle') }}-${{ github.run_id }}
           restore-keys: |
-            gradle-android-${{ runner.os }}-${{ hashFiles('pan_client/android/build.gradle') }}
+            gradle-android-${{ runner.os }}-${{ hashFiles('baidu-pan/pan_client/android/build.gradle') }}
             gradle-android-${{ runner.os }}
 
       - name: Cache pub dependencies
         uses: actions/cache@v4
         with:
           path: ~/.pub-cache
-          key: pub-android-${{ runner.os }}-${{ hashFiles('pan_client/pubspec.lock') }}-${{ github.run_id }}
+          key: pub-android-${{ runner.os }}-${{ hashFiles('baidu-pan/pan_client/pubspec.lock') }}-${{ github.run_id }}
           restore-keys: |
-            pub-android-${{ runner.os }}-${{ hashFiles('pan_client/pubspec.lock') }}
+            pub-android-${{ runner.os }}-${{ hashFiles('baidu-pan/pan_client/pubspec.lock') }}
             pub-android-${{ runner.os }}
 
       # -------------------------------------------------------------
-      # 核心构建步骤：直接执行 build_android.sh
+      # 核心构建步骤：执行 build_android.sh 并提升输出目录
       # -------------------------------------------------------------
       - name: Run Android Build Script
         run: |
-        
           cd baidu-pan
-          
           chmod +x build_android.sh
           ./build_android.sh
+          # 🛠️ 关键修复：将子目录生成的文件移动到 Workspace 根目录下，方便后续 Step 获取
+          cd ..
+          mkdir -p signed_apks
+          cp -r baidu-pan/signed_apks/*.apk signed_apks/
 
       # -------------------------------------------------------------
       # 缓存与历史产物清理
@@ -157,6 +159,6 @@ jobs:
           tag_name: v1.0.${{ github.run_number }}
           name: "Release v1.0.${{ github.run_number }}"
           body: "使用 dpt-shell 完成 DEX 抽壳加固并独立打包的 ARMv7 (32位) 和 ARM64 (64位) Android Release 版本。"
-          files: signed_apks/pan-client-*.apk
+          files: signed_apks/*.apk
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
