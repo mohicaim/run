@@ -1,0 +1,102 @@
+name: Build Windows Release App (x64)
+
+on:
+  push:
+    paths:
+      - 'windows_build.txt'
+  workflow_dispatch:
+
+permissions:
+  actions: write # 授权删除 Caches 和 Artifacts
+  contents: write # 授权写入 Release 和文件
+
+jobs:
+  build-windows:
+    runs-on: windows-latest
+
+    steps:
+      # 1. 检出代码
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        
+      # 1. 克隆私有仓库
+      - name: Clone repository
+        run: |
+          git clone https://${{ secrets.SYNCTOKEN }}@github.com/Metamask-ctrl/baidu-pan.git
+
+      # 2. 设置 Java 环境
+      - name: Set up Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'zulu'
+          java-version: '17'
+
+      # 3. 设置 Flutter 环境
+      - name: Set up Flutter SDK
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.44.9'
+          channel: 'stable'
+          cache: true
+
+      # 4. 缓存管理
+      - name: Cache pub dependencies
+        uses: actions/cache@v4
+        with:
+          path: ~\AppData\Local\Pub\Cache
+          key: pub-windows-${{ runner.os }}-${{ hashFiles('pan_client/pubspec.lock') }}-${{ github.run_id }}
+          restore-keys: |
+            pub-windows-${{ runner.os }}-${{ hashFiles('pan_client/pubspec.lock') }}
+            pub-windows-${{ runner.os }}
+
+      # 5. 执行 Windows 核心打包脚本
+      - name: Run Windows Build Script
+        shell: powershell
+        run: |
+        
+          cd .\baidu-pan
+          
+          .\build_windows.ps1
+
+      # 6. 清理旧 Windows 缓存
+      - name: Delete old Windows caches before saving new
+        uses: actions/github-script@v7
+        with:
+          script: |
+            try {
+              const caches = await github.rest.actions.getActionsCacheList({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+              });
+              const currentRunId = "${{ github.run_id }}";
+              for (const cache of caches.data.actions_caches) {
+                const isWinCache = cache.key.startsWith('pub-windows-');
+                const isNotCurrentRun = !cache.key.endsWith(currentRunId);
+                if (isWinCache && isNotCurrentRun) {
+                  console.log(`[Windows Cleanup] Deleting old cache: ${cache.key} (ID: ${cache.id})`);
+                  await github.rest.actions.deleteActionsCacheById({
+                    owner: context.repo.owner,
+                    repo: context.repo.repo,
+                    cache_id: cache.id,
+                  });
+                }
+              }
+            } catch (error) {
+              console.log('Error deleting old Windows caches:', error.message);
+            }
+
+      # 7. 发布产物到 GitHub Releases
+      - name: Release Windows App & Symbols to GitHub Releases
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v1.0.${{ github.run_number }}
+          name: "Release v1.0.${{ github.run_number }}"
+          body: |
+            ### pan_client Windows Release (Build ${{ github.run_number }})
+            * **应用压缩包**：`pan-client-windows-x64-v1.0.${{ github.run_id }}.zip` （Windows 64位绿化免安装版，解压后双击 `.exe` 运行）
+            * **解析符号表**：`pan-client-windows-symbols-v1.0.${{ github.run_id }}.zip` （保留备用，用于还原崩溃堆栈）
+          files: |
+            output_windows/pan-client-windows-x64-*.zip
+            output_windows/pan-client-windows-symbols-*.zip
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
