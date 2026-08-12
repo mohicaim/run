@@ -86,20 +86,13 @@ jobs:
               console.log('Error deleting old Windows caches:', error.message);
             }
 
-
       - name: Upload Windows Assets to Cloudflare R2
         env:
           AWS_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
           AWS_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
           AWS_DEFAULT_REGION: us-east-1
         run: |
-          aws s3 cp output_windows/ \
-            s3://${{ secrets.R2_BUCKET }}/v1.0.21/ \
-            --endpoint-url https://${{ secrets.CF_ACCOUNT_ID }}.r2.cloudflarestorage.com \
-            --recursive \
-            --exclude "*" \
-            --include "pan-client-windows-x64-*.zip" \
-            --include "pan-client-windows-symbols-*.zip"
+          aws s3 cp .\output_windows\ s3://${{ secrets.R2_BUCKET }}/v1.0.21/ --endpoint-url https://${{ secrets.CF_ACCOUNT_ID }}.r2.cloudflarestorage.com --recursive --exclude "*" --include "pan-client-windows-x64-*.zip" --include "pan-client-windows-symbols-*.zip"
 
 
       # 7. 发布产物到 GitHub Releases

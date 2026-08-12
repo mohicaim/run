@@ -101,14 +101,13 @@ jobs:
           AWS_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
           AWS_DEFAULT_REGION: us-east-1
         run: |
-          aws s3 cp output_linux/ \
+          aws s3 cp baidu-pan/output_linux/ \
             s3://${{ secrets.R2_BUCKET }}/v1.0.21/ \
             --endpoint-url https://${{ secrets.CF_ACCOUNT_ID }}.r2.cloudflarestorage.com \
             --recursive \
             --exclude "*" \
             --include "pan-client-linux-x64-*.tar.gz" \
             --include "pan-client-linux-symbols-*.zip"
-
 
 
       # 8. 发布产物到 GitHub Releases
