@@ -56,24 +56,19 @@ jobs:
         env:
           GITHUB_RUN_NUMBER: ${{ github.run_number }}
 
-
-      - name: Configure AWS Credentials for Cloudflare R2
-        uses: aws-actions/configure-aws-credentials@v4
-        with:
-          aws-access-key-id: ${{ secrets.R2_ACCESS_KEY_ID }}
-          aws-secret-access-key: ${{ secrets.R2_SECRET_ACCESS_KEY }}
-          aws-region: auto
-
-      - name: Upload macOS Assets (DMG, ZIP & Symbols) to Cloudflare R2
+      - name: Upload Assets to Cloudflare R2
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          AWS_DEFAULT_REGION: us-east-1
         run: |
-          aws s3 cp baidu-pan/output_macos/ \
+          aws s3 cp output/ \
             s3://${{ secrets.R2_BUCKET }}/v1.0.${{ github.run_number }}/ \
             --endpoint-url https://${{ secrets.CF_ACCOUNT_ID }}.r2.cloudflarestorage.com \
             --recursive \
             --exclude "*" \
             --include "*.dmg" \
             --include "*.zip"
-
 
 
       # 6. 发布到 GitHub Release 并上传 dmg、zip 等全部产物
