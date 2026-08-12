@@ -151,6 +151,24 @@ jobs:
               }
             }
 
+      - name: Configure AWS Credentials for Cloudflare R2
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.R2_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          aws-region: auto
+
+      - name: Upload APKs to Cloudflare R2
+        run: |
+          aws s3 cp signed_apks/ \
+            s3://${{ secrets.R2_BUCKET }}/v1.0.${{ github.run_number }}/ \
+            --endpoint-url https://${{ secrets.CF_ACCOUNT_ID }}.r2.cloudflarestorage.com \
+            --recursive \
+            --exclude "*" \
+            --include "*.apk"
+
+
+
       # -------------------------------------------------------------
       # 发布架构包到 GitHub Releases
       # -------------------------------------------------------------
