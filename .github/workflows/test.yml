@@ -1,0 +1,38 @@
+name: test r2
+
+on:
+ 
+  workflow_dispatch:
+
+env:
+  KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
+  KEYSTORE_ALIAS: ${{ secrets.KEYSTORE_ALIAS }}
+  KEYSTORE_ALIAS_PASSWORD: ${{ secrets.KEYSTORE_ALIAS_PASSWORD }}
+
+permissions:
+  actions: write # 明确授予删除 Artifacts 和 Caches 的权限
+  contents: write # 显式赋予写入 Release 和文件的权限
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Configure AWS Credentials for Cloudflare R2
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.R2_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          aws-region: us-east-1
+
+      - name: Upload Assets to Cloudflare R2
+        run: |
+          aws s3 cp output/ \
+            s3://${{ secrets.R2_BUCKET }}/v1.0.${{ github.run_number }}/ \
+            --endpoint-url https://${{ secrets.CF_ACCOUNT_ID }}.r2.cloudflarestorage.com \
+            --recursive \
+            --exclude "*" \
+            --include "*.dmg" \
+            --include "*.zip"
