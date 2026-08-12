@@ -56,13 +56,13 @@ jobs:
         env:
           GITHUB_RUN_NUMBER: ${{ github.run_number }}
 
-      - name: Upload Assets to Cloudflare R2
+      - name: Upload macOS Assets to Cloudflare R2
         env:
           AWS_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
           AWS_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
           AWS_DEFAULT_REGION: us-east-1
         run: |
-          aws s3 cp output/ \
+          aws s3 cp baidu-pan/output_macos/ \
             s3://${{ secrets.R2_BUCKET }}/v1.0.${{ github.run_number }}/ \
             --endpoint-url https://${{ secrets.CF_ACCOUNT_ID }}.r2.cloudflarestorage.com \
             --recursive \
